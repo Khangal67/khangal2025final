@@ -90,11 +90,12 @@
     async function init() {
       const status = document.getElementById("status");
       status.innerText = "Loading model...";
-      
+
       try {
         const modelURL = URL + "model.json";
         const metadataURL = URL + "metadata.json";
 
+        // Load Teachable Machine model
         model = await tmImage.load(modelURL, metadataURL);
         maxPredictions = model.getTotalClasses();
 
@@ -120,8 +121,9 @@
         window.requestAnimationFrame(loop);
 
       } catch (err) {
-        console.error(err);
-        alert("Error loading model or webcam. Check console for details.");
+        console.error("Error loading model or webcam:", err);
+        alert("Error loading model or webcam! Check console.\nPossible causes:\n1) Wrong model path\n2) Webcam blocked\n3) Not using HTTPS");
+        status.innerText = "Error loading model or webcam.";
       }
     }
 
@@ -133,8 +135,7 @@
 
     async function predict() {
       const prediction = await model.predict(webcam.canvas);
-
-      // Sort by probability descending
+      // Sort predictions by probability
       prediction.sort((a, b) => b.probability - a.probability);
 
       for (let i = 0; i < maxPredictions; i++) {
@@ -144,7 +145,6 @@
         bar.style.width = (prediction[i].probability * 100) + "%";
       }
 
-      // Show top prediction in status
       document.getElementById("status").innerText = `Top Prediction: ${prediction[0].className}`;
     }
   </script>
