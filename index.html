@@ -14,15 +14,8 @@
       margin: 0;
       padding: 20px;
     }
-    h1 {
-      color: #2a7a2a;
-      margin-bottom: 5px;
-    }
-    p {
-      color: #333;
-      margin-top: 5px;
-      margin-bottom: 20px;
-    }
+    h1 { color: #2a7a2a; margin-bottom: 5px; }
+    p { color: #333; margin-top: 5px; margin-bottom: 20px; }
     #webcam-container {
       margin: 20px auto;
       border: 3px solid #2a7a2a;
@@ -30,28 +23,8 @@
       display: inline-block;
       background: #fff;
     }
-    #label-container {
-      margin-top: 20px;
-      font-size: 18px;
-      font-weight: bold;
-    }
-    #status {
-      margin-top: 15px;
-      color: #555;
-    }
-    button {
-      background-color: #2a7a2a;
-      color: #fff;
-      border: none;
-      padding: 10px 20px;
-      font-size: 16px;
-      border-radius: 5px;
-      cursor: pointer;
-      margin-bottom: 10px;
-    }
-    button:hover {
-      background-color: #1e5c1e;
-    }
+    #label-container { margin-top: 20px; font-size: 18px; font-weight: bold; }
+    #status { margin-top: 15px; color: #555; }
     .bar-container {
       width: 300px;
       height: 15px;
@@ -73,9 +46,7 @@
   <h1>Smart Waste Sorter</h1>
   <p>Use your webcam to identify different types of waste: Metal, Organic, or Recyclable!</p>
 
-  <button onclick="init()">Start Webcam & Model</button>
-  <div id="status">Model not loaded yet.</div>
-
+  <div id="status">Loading model and webcam...</div>
   <div id="webcam-container"></div>
   <div id="label-container"></div>
 
@@ -89,23 +60,18 @@
 
     async function init() {
       const status = document.getElementById("status");
-      status.innerText = "Loading model...";
-
       try {
-        const modelURL = URL + "model.json";
-        const metadataURL = URL + "metadata.json";
-
-        // Load Teachable Machine model
-        model = await tmImage.load(modelURL, metadataURL);
+        // Load model
+        model = await tmImage.load(URL + "model.json", URL + "metadata.json");
         maxPredictions = model.getTotalClasses();
 
-        status.innerText = "Setting up webcam...";
-        webcam = new tmImage.Webcam(300, 300, true); // width, height, flip
+        // Setup webcam
+        webcam = new tmImage.Webcam(300, 300, true);
         await webcam.setup();
         await webcam.play();
-
         document.getElementById("webcam-container").appendChild(webcam.canvas);
 
+        // Setup labels
         const labelContainer = document.getElementById("label-container");
         labelContainer.innerHTML = "";
         for (let i = 0; i < maxPredictions; i++) {
@@ -117,13 +83,13 @@
           labelContainer.appendChild(wrapper);
         }
 
-        status.innerText = "Model running. Hold an item up to the camera!";
+        status.innerText = "Model running! Hold an item up to the camera.";
         window.requestAnimationFrame(loop);
 
       } catch (err) {
         console.error("Error loading model or webcam:", err);
-        alert("Error loading model or webcam! Check console.\nPossible causes:\n1) Wrong model path\n2) Webcam blocked\n3) Not using HTTPS");
-        status.innerText = "Error loading model or webcam.";
+        status.innerText = "Error loading model or webcam. Check console.";
+        alert("Error loading model or webcam!\nPossible causes:\n1) Wrong model path\n2) Webcam blocked\n3) Not using HTTPS\nCheck console for details.");
       }
     }
 
@@ -135,7 +101,6 @@
 
     async function predict() {
       const prediction = await model.predict(webcam.canvas);
-      // Sort predictions by probability
       prediction.sort((a, b) => b.probability - a.probability);
 
       for (let i = 0; i < maxPredictions; i++) {
@@ -147,6 +112,9 @@
 
       document.getElementById("status").innerText = `Top Prediction: ${prediction[0].className}`;
     }
+
+    // Auto-start everything when page loads
+    window.addEventListener("load", init);
   </script>
 
 </body>
