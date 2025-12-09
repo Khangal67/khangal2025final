@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Waste Sorter – AI Teachable Machine</title>
+    <style>
+        body { font-family: Arial; text-align: center; background: #f4f4f4; padding: 20px; }
+        #webcam-container { margin: 15px auto; }
+        .bar {
+            height: 12px;
+            background: #4CAF50;
+            transition: width 0.3s ease;
+        }
+        .bar-container {
+            width: 200px;
+            background: #ddd;
+            margin: 5px auto;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        .prediction-label { font-weight: bold; }
+    </style>
+</head>
+
+<body>
+    <h1>Smart Waste Sorter: AI Recycling Helper</h1>
+    <p>Hold waste items up to the camera and the AI will classify them.</p>
+
+    <button onclick="init()">Start Webcam & Model</button>
+
+    <h3 id="status">Model not loaded yet.</h3>
+
+    <div id="webcam-container"></div>
+    <div id="label-container"></div>
+
+    <!-- TensorFlow + Teachable Machine -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest"></script>
+
+    <script>
+        const URL = "./my_model/";  // Folder with model.json + metadata.json
+
+        let model, webcam, maxPredictions;
+        const status = document.getElementById("status");
+
+        async function init() {
+            status.innerText = "Loading model...";
+
+            const modelURL = URL + "model.json";
+            const metadataURL = URL + "metadata.json";
+
+            model = await tmImage.load(modelURL, metadataURL);
+            maxPredictions = model.getTotalClasses();
+
+            status.innerText = "Starting webcam...";
+
+            webcam = new tmImage.Webcam(300, 300, true);
+            await webcam.setup();
+            await webcam.play();
+            window.requestAnimationFrame(loop);
+
+            document.getElementById("webcam-container").appendChild(webcam.canvas);
+
+            const labelContainer = document.getElementById("label-container");
+            labelContainer.innerHTML = "";
+            for (let i = 0; i < maxPredictions; i++) {
+                const wrapper = document.createElement("div");
+                wrapper.innerHTML = `
+                    <div class="prediction-label" id="label-${i}"></div>
+                    <div class="bar-container"><div class="bar" id="bar-${i}"></div></div>
+                `;
+                labelContainer.appendChild(wrapper);
+            }
+
+            status.innerText = "Model running. Hold an item up to the camera!";
+        }
+
+        async function loop() {
+            webcam.update();
+            await predict();
+            window.requestAnimationFrame(loop);
+        }
+
+        async function predict() {
+            if (!model || !webcam) return;
+
+            const prediction = await model.predict(webcam.canvas);
+
+            prediction.sort((a,b) => b.probability - a.probability);
+
+            for (let i = 0; i < maxPredictions; i++) {
+                const label = document.getElementById(`label-${i}`);
+                const bar = document.getElementById(`bar-${i}`);
+
+                label.innerText = `${prediction[i].className}: ${(prediction[i].probability * 100).toFixed(1)}%`;
+                bar.style.width = (prediction[i].probability * 100) + "%";
+            }
+
+            status.innerText = `Top Prediction: ${prediction[0].className}`;
+        }
+    </script>
+
+</body>
+</html>
+
