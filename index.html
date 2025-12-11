@@ -8,7 +8,9 @@
     <style>
         :root {
             --primary: #4a90e2;
-            --bg: #f2f5f9;
+            --secondary: #ff9f43;
+            --accent: #50c878;
+            --bg: #eef2f7;
             --card-bg: #ffffff;
             --text-dark: #222;
             --text-light: #555;
@@ -28,17 +30,19 @@
 
         h1 {
             text-align: center;
-            color: var(--text-dark);
-            font-size: 2.2rem;
+            color: var(--primary);
+            font-size: 2.4rem;
             margin-bottom: 30px;
+            font-weight: 800;
         }
 
         .card {
             background: var(--card-bg);
             padding: 25px;
-            border-radius: 16px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border-radius: 18px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             margin-bottom: 25px;
+            border-left: 6px solid var(--primary);
         }
 
         h2 {
@@ -52,8 +56,24 @@
         }
 
         ol {
-            margin-top: 10px;
             padding-left: 22px;
+        }
+
+        button {
+            display: block;
+            margin: 10px auto 0 auto;
+            padding: 12px 22px;
+            background: var(--secondary);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: 0.25s;
+        }
+
+        button:hover {
+            background: #e6892f;
         }
 
         #webcam-container {
@@ -64,27 +84,22 @@
 
         #label-container div {
             text-align: center;
-            font-size: 1.1rem;
+            font-size: 1.05rem;
             font-weight: 600;
-            margin-top: 8px;
+            margin-top: 6px;
             color: var(--text-dark);
         }
 
-        button {
-            display: block;
-            margin: 10px auto 0 auto;
-            padding: 12px 22px;
-            background: var(--primary);
-            border: none;
-            border-radius: 10px;
+        #final-label {
+            margin-top: 18px;
+            text-align: center;
+            font-size: 1.6rem;
+            padding: 12px;
+            font-weight: 700;
+            border-radius: 12px;
             color: white;
-            font-size: 1.1rem;
-            cursor: pointer;
-            transition: 0.25s;
-        }
-
-        button:hover {
-            background: #357ac8;
+            background: var(--accent);
+            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
         }
     </style>
 </head>
@@ -97,36 +112,34 @@
 
         <!-- Problem Section -->
         <div class="card">
-            <h2>What Problem Does This Solve?</h2>
+            <h2>Project Goal</h2>
             <p>
-                Many people struggle to sort waste correctly, which leads to recyclables ending up in landfills
-                and organic waste being mixed with plastics and metals. This increases pollution and makes
-                recycling less effective.
-            </p>
-            <p>
-                This website uses a machine learning model trained with Teachable Machine to recognize 
-                four common waste types: <b>organic waste, metal, plastic, and paper</b>. It helps users sort 
-                their trash correctly and reduce contamination.
+                People often mix up waste, leading to contamination in recycling bins and more trash
+                ending up in landfills. This project uses machine learning to automatically detect
+                four types of waste: <b>Paper, Plastic, Metal, and Organic Waste</b>.
             </p>
         </div>
 
         <!-- Instructions -->
         <div class="card">
-            <h2>How to Use It</h2>
+            <h2>How to Use the Classifier</h2>
             <ol>
-                <li>Click the <b>Start</b> button below.</li>
-                <li>Allow access to your webcam.</li>
+                <li>Click the <b>Start</b> button.</li>
+                <li>Allow the website to access your webcam.</li>
                 <li>Hold any object (paper, plastic, metal, or organic waste) in front of the camera.</li>
-                <li>The model will instantly predict which category the object belongs to.</li>
+                <li>The model will detect the object and show the predicted category below.</li>
             </ol>
         </div>
 
         <!-- Model Section -->
         <div class="card">
-            <h2>Live Classifier</h2>
+            <h2>Live Detection</h2>
             <button onclick="init()">Start</button>
             <div id="webcam-container"></div>
             <div id="label-container"></div>
+
+            <!-- NEW: Final material label -->
+            <div id="final-label">Waiting for detection...</div>
         </div>
 
     </div>
@@ -147,8 +160,7 @@
             model = await tmImage.load(modelURL, metadataURL);
             maxPredictions = model.getTotalClasses();
 
-            const flip = true;
-            webcam = new tmImage.Webcam(250, 250, flip);
+            webcam = new tmImage.Webcam(300, 300, true);
             await webcam.setup();
             await webcam.play();
             window.requestAnimationFrame(loop);
@@ -169,11 +181,22 @@
 
         async function predict() {
             const prediction = await model.predict(webcam.canvas);
+            let highest = { className: "", probability: 0 };
+
             for (let i = 0; i < maxPredictions; i++) {
+                const prob = prediction[i].probability;
                 const classPrediction =
-                    `${prediction[i].className}: ${prediction[i].probability.toFixed(2)}`;
+                    `${prediction[i].className}: ${prob.toFixed(2)}`;
                 labelContainer.childNodes[i].innerHTML = classPrediction;
+
+                if (prob > highest.probability) {
+                    highest = prediction[i];
+                }
             }
+
+            // Update the final detection label
+            document.getElementById("final-label").innerHTML =
+                `Detected: ${highest.className}`;
         }
     </script>
 
