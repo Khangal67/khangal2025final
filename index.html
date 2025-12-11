@@ -1,179 +1,114 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Smart Waste Classifier</title>
-
+    <title>Waste Detector</title>
     <style>
-        :root {
-            --primary: #4a90e2;
-            --secondary: #ff9f43;
-            --accent: #50c878;
-            --bg: #eef2f7;
-            --card-bg: #ffffff;
-            --text-dark: #222;
-            --text-light: #555;
-        }
-
         body {
-            margin: 0;
-            background: var(--bg);
-            font-family: "Inter", Arial, sans-serif;
-        }
-
-        .container {
-            max-width: 900px;
-            margin: 40px auto;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background: linear-gradient(135deg, #d7f0ff, #ffd9e8);
             padding: 20px;
         }
 
         h1 {
-            text-align: center;
-            color: var(--primary);
-            font-size: 2.4rem;
-            margin-bottom: 30px;
-            font-weight: 800;
+            color: #2a2a2a;
         }
 
-        .card {
-            background: var(--card-bg);
-            padding: 25px;
-            border-radius: 18px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            margin-bottom: 25px;
-            border-left: 6px solid var(--primary);
-        }
-
-        h2 {
-            color: var(--text-dark);
-            margin-bottom: 10px;
-        }
-
-        p, li {
-            color: var(--text-light);
-            font-size: 1rem;
-        }
-
-        ol {
-            padding-left: 22px;
+        #container {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            width: 360px;
+            margin: auto;
+            box-shadow: 0px 4px 15px rgba(0,0,0,0.2);
         }
 
         button {
-            display: block;
-            margin: 10px auto 0 auto;
-            padding: 12px 22px;
-            background: var(--secondary);
-            border: none;
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
             border-radius: 12px;
-            color: white;
-            font-size: 1.2rem;
+            border: none;
             cursor: pointer;
-            transition: 0.25s;
+            transition: 0.2s;
         }
 
-        button:hover {
-            background: #e6892f;
+        #startBtn { background-color: #4CAF50; color: white; }
+        #stopBtn { background-color: #ff5252; color: white; }
+
+        button:hover { transform: scale(1.05); }
+
+        #detected {
+            font-size: 22px;
+            font-weight: bold;
+            margin-top: 15px;
+            color: #333;
         }
 
         #webcam-container {
-            display: flex;
-            justify-content: center;
-            margin-top: 15px;
+            margin-top: 10px;
         }
 
         #label-container div {
-            text-align: center;
-            font-size: 1.05rem;
-            font-weight: 600;
-            margin-top: 6px;
-            color: var(--text-dark);
-        }
-
-        #final-label {
-            margin-top: 18px;
-            text-align: center;
-            font-size: 1.6rem;
-            padding: 12px;
-            font-weight: 700;
-            border-radius: 12px;
-            color: white;
-            background: var(--accent);
-            box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+            margin: 3px 0;
+            padding: 6px;
+            background: #f2f2f2;
+            border-radius: 10px;
         }
     </style>
 </head>
 
 <body>
+    <h1>Real-Time Waste Material Detector</h1>
 
-    <div class="container">
+    <div id="container">
+        <button id="startBtn" onclick="init()">Start Camera</button>
+        <button id="stopBtn" onclick="stop()">Stop / Reset</button>
 
-        <h1>Smart Waste Classifier</h1>
+        <div id="webcam-container"></div>
 
-        <!-- Problem Section -->
-        <div class="card">
-            <h2>Project Goal</h2>
-            <p>
-                People often mix up waste, leading to contamination in recycling bins and more trash
-                ending up in landfills. This project uses machine learning to automatically detect
-                four types of waste: <b>Paper, Plastic, Metal, and Organic Waste</b>.
-            </p>
-        </div>
+        <div id="detected">Detected: —</div>
 
-        <!-- Instructions -->
-        <div class="card">
-            <h2>How to Use the Classifier</h2>
-            <ol>
-                <li>Click the <b>Start</b> button.</li>
-                <li>Allow the website to access your webcam.</li>
-                <li>Hold any object (paper, plastic, metal, or organic waste) in front of the camera.</li>
-                <li>The model will detect the object and show the predicted category below.</li>
-            </ol>
-        </div>
-
-        <!-- Model Section -->
-        <div class="card">
-            <h2>Live Detection</h2>
-            <button onclick="init()">Start</button>
-            <div id="webcam-container"></div>
-            <div id="label-container"></div>
-
-            <!-- NEW: Final material label -->
-            <div id="final-label">Waiting for detection...</div>
-        </div>
-
+        <h3>Confidence Scores</h3>
+        <div id="label-container"></div>
     </div>
 
-    <!-- Scripts -->
+    <!-- Teachable Machine scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest/dist/tf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@latest/dist/teachablemachine-image.min.js"></script>
 
     <script type="text/javascript">
         const URL = "./my_model/";
-
-        let model, webcam, labelContainer, maxPredictions;
+        let model, webcam, labelContainer, maxPredictions, isRunning = false;
 
         async function init() {
+            if (isRunning) return;
+            isRunning = true;
+
             const modelURL = URL + "model.json";
             const metadataURL = URL + "metadata.json";
 
             model = await tmImage.load(modelURL, metadataURL);
             maxPredictions = model.getTotalClasses();
 
-            webcam = new tmImage.Webcam(300, 300, true);
+            const flip = true;
+            webcam = new tmImage.Webcam(250, 250, flip);
             await webcam.setup();
             await webcam.play();
             window.requestAnimationFrame(loop);
 
+            document.getElementById("webcam-container").innerHTML = "";
             document.getElementById("webcam-container").appendChild(webcam.canvas);
 
             labelContainer = document.getElementById("label-container");
+            labelContainer.innerHTML = "";
             for (let i = 0; i < maxPredictions; i++) {
                 labelContainer.appendChild(document.createElement("div"));
             }
         }
 
         async function loop() {
+            if (!isRunning) return;
             webcam.update();
             await predict();
             window.requestAnimationFrame(loop);
@@ -181,24 +116,37 @@
 
         async function predict() {
             const prediction = await model.predict(webcam.canvas);
-            let highest = { className: "", probability: 0 };
+            let highestClass = "";
+            let highestProb = 0;
 
             for (let i = 0; i < maxPredictions; i++) {
-                const prob = prediction[i].probability;
-                const classPrediction =
-                    `${prediction[i].className}: ${prob.toFixed(2)}`;
-                labelContainer.childNodes[i].innerHTML = classPrediction;
+                let prob = prediction[i].probability;
+                let name = prediction[i].className;
 
-                if (prob > highest.probability) {
-                    highest = prediction[i];
+                labelContainer.childNodes[i].innerHTML =
+                    `${name}: ${prob.toFixed(2)}`;
+
+                if (prob > highestProb) {
+                    highestProb = prob;
+                    highestClass = name;
                 }
             }
 
-            // Update the final detection label
-            document.getElementById("final-label").innerHTML =
-                `Detected: ${highest.className}`;
+            document.getElementById("detected").innerHTML =
+                `Detected: <span style="color:#0077cc">${highestClass}</span>`;
+        }
+
+        function stop() {
+            if (webcam) {
+                webcam.stop();
+            }
+
+            isRunning = false;
+
+            document.getElementById("webcam-container").innerHTML = "";
+            document.getElementById("label-container").innerHTML = "";
+            document.getElementById("detected").innerText = "Detected: —";
         }
     </script>
-
 </body>
 </html>
